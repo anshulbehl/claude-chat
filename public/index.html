@@ -467,6 +467,58 @@
       text-align: right;
       margin-top: 4px;
     }
+
+    .search-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    .search-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--text-muted);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .search-sources {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .search-sources summary {
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .search-sources ul {
+      margin-top: 4px;
+      padding-left: 20px;
+    }
+
+    .search-sources li {
+      margin: 2px 0;
+    }
+
+    .search-sources a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .search-sources a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>

@@ -20,6 +20,7 @@ vi.mock("@anthropic-ai/vertex-sdk", () => {
       constructor() {
         this.messages = {
           stream: vi.fn().mockResolvedValue(mockStream),
+          create: vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] }),
         };
       }
     },
@@ -44,7 +45,9 @@ beforeAll(async () => {
   mkdirSync(join(TEST_DATA_DIR, ".claude-chat", "uploads"), { recursive: true });
   const mod = await import("../server.js");
   app = mod.app;
-  MODELS = mod.MODELS;
+  MODELS = mod.ALL_MODELS;
+  // Wait for model probing to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
 });
 
 afterEach(() => {

@@ -326,8 +326,32 @@ async function sendMessage() {
             contentEl.innerHTML = renderMarkdown(fullText);
             contentEl.classList.add("streaming-cursor");
             scrollToBottom();
+          } else if (event.type === "tool_use" && event.name === "web_search") {
+            // Show search indicator immediately
+            if (!gotFirstText) {
+              contentEl.innerHTML = "";
+              gotFirstText = true;
+            }
+            contentEl.innerHTML = `<div class="search-indicator"><span class="search-spinner"></span> Searching the web...</div>`;
+            scrollToBottom();
+          } else if (event.type === "tool_query") {
+            // Update indicator with the actual query
+            contentEl.innerHTML = `<div class="search-indicator"><span class="search-spinner"></span> Searching for: ${escapeHtml(event.query)}</div>`;
+            scrollToBottom();
+          } else if (event.type === "web_search_results" && event.results?.length > 0) {
+            // Store search results to append after text
+            msgEl._searchResults = event.results;
           } else if (event.type === "done") {
             contentEl.classList.remove("streaming-cursor");
+            // Append search sources if any
+            if (msgEl._searchResults?.length > 0) {
+              const sourcesEl = document.createElement("div");
+              sourcesEl.className = "search-sources";
+              sourcesEl.innerHTML = `<details><summary>Sources (${msgEl._searchResults.length})</summary><ul>${
+                msgEl._searchResults.map(r => `<li><a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${escapeHtml(r.title)}</a></li>`).join("")
+              }</ul></details>`;
+              msgEl.appendChild(sourcesEl);
+            }
             if (event.cost) {
               const costEl = document.createElement("div");
               costEl.className = "cost-info";

@@ -147,18 +147,46 @@ function processUploadedFiles(files) {
 app.use(express.json());
 app.use(express.static("public"));
 
-// Available models
-const MODELS = [
-  { alias: "claude-opus-4-6", label: "Opus 4.6", description: "Latest, most intelligent", modelId: "claude-opus-4@20250514" },
-  { alias: "claude-sonnet-4-6", label: "Sonnet 4.6", description: "Latest, fast and capable", modelId: "claude-sonnet-4@20250514" },
+// All known models - probed on startup to check availability
+const ALL_MODELS = [
+  { alias: "claude-opus-4-6", label: "Opus 4.6", description: "Latest, most intelligent", modelId: "claude-opus-4-6" },
+  { alias: "claude-sonnet-4-6", label: "Sonnet 4.6", description: "Latest, fast and capable", modelId: "claude-sonnet-4-6" },
   { alias: "sonnet", label: "Sonnet 4.5", description: "Best for everyday tasks", modelId: "claude-sonnet-4-5@20250929" },
   { alias: "opus", label: "Opus 4.5", description: "Most capable for complex work", modelId: "claude-opus-4-5@20251101" },
   { alias: "haiku", label: "Haiku 4.5", description: "Fastest for quick answers", modelId: "claude-haiku-4-5@20251001" },
 ];
 
+let availableModels = null;
+
+async function probeModels() {
+  console.log("Probing model availability...");
+  const results = await Promise.allSettled(
+    ALL_MODELS.map(async (m) => {
+      try {
+        await client.messages.create({
+          model: m.modelId,
+          max_tokens: 1,
+          messages: [{ role: "user", content: "hi" }],
+        });
+        return m;
+      } catch (err) {
+        console.log(`  ${m.alias} (${m.modelId}): unavailable - ${err.message?.slice(0, 80)}`);
+        return null;
+      }
+    })
+  );
+  availableModels = results
+    .filter(r => r.status === "fulfilled" && r.value)
+    .map(r => r.value);
+  console.log(`Available models: ${availableModels.map(m => m.alias).join(", ")}`);
+}
+
+// Probe on startup (non-blocking)
+probeModels();
+
 // Get available models
 app.get("/api/models", (_req, res) => {
-  res.json(MODELS);
+  res.json(availableModels || ALL_MODELS);
 });
 
 // List all chat sessions
@@ -265,7 +293,7 @@ app.post("/api/chat", handleUpload, async (req, res) => {
     res.write(`data: ${JSON.stringify({ type: "session", sessionId: currentSessionId })}\n\n`);
 
     // Get model ID
-    const selectedModel = MODELS.find(m => m.alias === model) || MODELS[2];
+    const selectedModel = ALL_MODELS.find(m => m.alias === model) || ALL_MODELS[2];
     const modelId = selectedModel.modelId;
 
     console.log(`Calling Vertex AI with model: ${modelId}, messages: ${conversationHistory.length}, files: ${uploadedFiles.length}`);
@@ -277,6 +305,9 @@ app.post("/api/chat", handleUpload, async (req, res) => {
       model: modelId,
       max_tokens: 8192,
       messages: conversationHistory,
+      tools: [
+        { name: "web_search", type: "web_search_20250305" },
+      ],
       system: "You are Claude, a helpful AI assistant made by Anthropic. You are being accessed through a chat interface, similar to claude.ai. Have a natural conversation. Be helpful, harmless, and honest. Use markdown formatting when appropriate.",
     });
 
@@ -286,6 +317,34 @@ app.post("/api/chat", handleUpload, async (req, res) => {
       res.write(`data: ${JSON.stringify({ type: "text", text })}\n\n`);
     });
 
+    // Catch tool use events in real-time via raw stream events
+    let activeToolIndex = -1;
+    let toolInputJson = "";
+    stream.on('streamEvent', (event) => {
+      if (event.type === 'content_block_start') {
+        const block = event.content_block;
+        if (block.type === 'server_tool_use' && block.name === 'web_search') {
+          activeToolIndex = event.index;
+          toolInputJson = "";
+          // Send immediate indicator (query will follow)
+          res.write(`data: ${JSON.stringify({ type: "tool_use", name: "web_search" })}\n\n`);
+        }
+      } else if (event.type === 'content_block_delta' && event.index === activeToolIndex) {
+        if (event.delta?.type === 'input_json_delta' && event.delta.partial_json) {
+          toolInputJson += event.delta.partial_json;
+        }
+      } else if (event.type === 'content_block_stop' && event.index === activeToolIndex) {
+        // Send the complete query once we have it
+        try {
+          const input = JSON.parse(toolInputJson);
+          if (input.query) {
+            res.write(`data: ${JSON.stringify({ type: "tool_query", query: input.query })}\n\n`);
+          }
+        } catch {}
+        activeToolIndex = -1;
+      }
+    });
+
     stream.on('error', (error) => {
       console.error('Stream error:', error);
       res.write(`data: ${JSON.stringify({ type: "error", error: error.message })}\n\n`);
@@ -293,6 +352,16 @@ app.post("/api/chat", handleUpload, async (req, res) => {
 
     // Wait for stream to complete
     const finalMessage = await stream.finalMessage();
+
+    // Extract search results from final message
+    for (const block of finalMessage.content) {
+      if (block.type === 'web_search_tool_result') {
+        const results = Array.isArray(block.content) ? block.content
+          .filter(r => r.type === 'web_search_result')
+          .map(r => ({ title: r.title, url: r.url })) : [];
+        res.write(`data: ${JSON.stringify({ type: "web_search_results", results })}\n\n`);
+      }
+    }
 
     // Extract text from response
     const assistantText = finalMessage.content
@@ -358,7 +427,7 @@ app.post("/api/chat", handleUpload, async (req, res) => {
 });
 
 // Export app for testing
-export { app, MODELS, loadSessions, saveSessions, DATA_DIR };
+export { app, ALL_MODELS, loadSessions, saveSessions, DATA_DIR };
 
 // Start server only when run directly
 import { fileURLToPath } from "url";
