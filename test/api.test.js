@@ -242,10 +242,9 @@ describe("POST /api/chat", () => {
     expect(sessionEvent).toBeTruthy();
     expect(sessionEvent.sessionId).toBeTruthy();
 
-    // Should have done event with cost
+    // Should have done event
     const doneEvent = events.find((e) => e.type === "done");
     expect(doneEvent).toBeTruthy();
-    expect(doneEvent.cost).toBeGreaterThan(0);
   });
 
   it("creates a new session for first message", async () => {

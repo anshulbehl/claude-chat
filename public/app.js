@@ -578,13 +578,6 @@ async function sendMessage() {
               }</ul></details>`;
               msgEl.appendChild(sourcesEl);
             }
-
-            if (event.cost) {
-              const costEl = document.createElement("div");
-              costEl.className = "cost-info";
-              costEl.textContent = `$${event.cost.toFixed(4)}`;
-              msgEl.appendChild(costEl);
-            }
           } else if (event.type === "error") {
             contentEl.classList.remove("streaming-cursor");
             contentEl.innerHTML = `<p style="color: var(--accent)">Error: ${escapeHtml(event.error)}</p>`;

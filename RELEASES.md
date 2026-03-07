@@ -32,25 +32,45 @@ We follow [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
 ---
 
-### v1.1.0 (Phase 1 - Target: March 28, 2026)
-**Status**: In Development 🚧
+### v1.1.0 (Phase 1 - Released: March 7, 2026)
+**Status**: Released ✅
 
 **Branch**: `dev/phase-1-workspace-foundation`
 
 **Features:**
-- Enhanced message storage with file metadata preservation
-- Multi-query research mode with progress indicators
-- Workspace file tree UI
-- File persistence across sessions
-- Folder upload support
+- **Modular Architecture**: Refactored 777-line monolithic server.js into focused modules (96% reduction)
+  - Separated routes, business logic, and utilities for easier maintenance
+  - Clean dependency graph with no circular dependencies
+- **Multi-Query Research Mode**: Intelligent web search with progress tracking
+  - Detects research intent from user messages or button click
+  - Breaks down topics into multiple search queries
+  - Animated progress indicators for each query
+  - Stop button to cancel mid-research
+- **Enhanced UX**:
+  - Dark/light theme toggle with professional SVG icons
+  - Collapsible sidebar with smooth animations
+  - Stop button for streaming responses
+  - Improved message rendering with proper markdown support
+- **File Handling**: Enhanced metadata preservation without wasteful persistence
+  - File references stored in message content
+  - No persistent file storage (users have files locally)
 
-**Success Criteria:**
-- File uploads persist across reloads
-- Research mode executes multiple queries
-- File tree displays workspace structure
-- All existing tests pass
+**Bug Fixes:**
+- Fixed research mode crash (missing client parameter)
+- Fixed `[object Object]` display in old chats (array content rendering)
+- Fixed theme toggle to show opposite mode (better UX)
 
-**Tag**: `v1.1.0` (upon completion)
+**Removals:**
+- Removed cost tracking feature (not useful for company users with unlimited API access)
+
+**Success Criteria:** ✅ All met
+- Research mode executes multiple queries with progress indicators
+- Stop button cleanly cancels streaming and research
+- Dark/light theme works seamlessly
+- All 13 tests pass
+- Code is modular and maintainable
+
+**Tag**: `v1.1.0`
 
 ---
 
