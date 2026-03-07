@@ -60,9 +60,9 @@
 
     /* Sidebar */
     .sidebar {
-      width: 280px;
+      width: var(--sidebar-initial-width, 280px);
       background: var(--bg-secondary);
-      border-right: 1px solid var(--border);
+      border-right: var(--sidebar-initial-border, 1px solid var(--border));
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
@@ -792,6 +792,16 @@
       color: var(--text-primary);
     }
   </style>
+  <script>
+    // Prevent sidebar flash on page load
+    (function() {
+      const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+      if (sidebarCollapsed) {
+        document.documentElement.style.setProperty('--sidebar-initial-width', '0');
+        document.documentElement.style.setProperty('--sidebar-initial-border', 'none');
+      }
+    })();
+  </script>
 </head>
 <body>
   <div class="app">

@@ -128,11 +128,21 @@ sidebarToggle.addEventListener("click", () => {
   sidebarCollapsed = !sidebarCollapsed;
   sidebar.classList.toggle('collapsed', sidebarCollapsed);
   localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+
+  // Clear CSS variables set in head script when expanding
+  if (!sidebarCollapsed) {
+    document.documentElement.style.removeProperty('--sidebar-initial-width');
+    document.documentElement.style.removeProperty('--sidebar-initial-border');
+  }
 });
 
 function initializeSidebar() {
   if (sidebarCollapsed) {
     sidebar.classList.add('collapsed');
+  } else {
+    // Clear CSS variables if sidebar is not collapsed
+    document.documentElement.style.removeProperty('--sidebar-initial-width');
+    document.documentElement.style.removeProperty('--sidebar-initial-border');
   }
 }
 
