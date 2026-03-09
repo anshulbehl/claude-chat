@@ -300,7 +300,7 @@ async function selectSession(id) {
   const session = sessions[id];
   if (session) {
     updateHeader(session.title || "Chat");
-    modelSelect.value = session.model || "claude-opus-4-6";
+    modelSelect.value = session.model || "sonnet";
   }
 
   // Load messages from server
