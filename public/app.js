@@ -243,7 +243,10 @@ function renderFilesList() {
     fileTag.className = "file-tag";
 
     // Show image preview for image files
-    if (file.type.startsWith("image/")) {
+    const isImage = file.type.startsWith("image/");
+    const isPasted = file.name.startsWith("pasted-image-");
+
+    if (isImage) {
       const img = document.createElement("img");
       img.className = "file-preview";
       img.src = URL.createObjectURL(file);
@@ -251,9 +254,12 @@ function renderFilesList() {
       fileTag.appendChild(img);
     }
 
-    const fileName = document.createElement("span");
-    fileName.textContent = file.name;
-    fileTag.appendChild(fileName);
+    // Only show filename for non-pasted images or non-images
+    if (!isPasted) {
+      const fileName = document.createElement("span");
+      fileName.textContent = file.name;
+      fileTag.appendChild(fileName);
+    }
 
     const removeBtn = document.createElement("span");
     removeBtn.className = "remove";
