@@ -236,14 +236,33 @@ function renderFilesList() {
   }
 
   filesList.style.display = "flex";
-  filesList.innerHTML = selectedFiles
-    .map((file, idx) => `
-      <div class="file-tag">
-        <span>${escapeHtml(file.name)}</span>
-        <span class="remove" onclick="removeFile(${idx})">×</span>
-      </div>
-    `)
-    .join("");
+  filesList.innerHTML = "";
+
+  selectedFiles.forEach((file, idx) => {
+    const fileTag = document.createElement("div");
+    fileTag.className = "file-tag";
+
+    // Show image preview for image files
+    if (file.type.startsWith("image/")) {
+      const img = document.createElement("img");
+      img.className = "file-preview";
+      img.src = URL.createObjectURL(file);
+      img.alt = file.name;
+      fileTag.appendChild(img);
+    }
+
+    const fileName = document.createElement("span");
+    fileName.textContent = file.name;
+    fileTag.appendChild(fileName);
+
+    const removeBtn = document.createElement("span");
+    removeBtn.className = "remove";
+    removeBtn.textContent = "×";
+    removeBtn.onclick = () => removeFile(idx);
+    fileTag.appendChild(removeBtn);
+
+    filesList.appendChild(fileTag);
+  });
 }
 
 function removeFile(index) {
