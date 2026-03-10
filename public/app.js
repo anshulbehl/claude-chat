@@ -87,6 +87,32 @@ fileInput.addEventListener("change", (e) => {
   fileInput.value = ""; // Reset input
 });
 
+// Handle paste events (screenshots, images from clipboard)
+chatInput.addEventListener("paste", async (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
+
+  if (imageItems.length > 0) {
+    e.preventDefault(); // Prevent default paste behavior for images
+
+    for (const item of imageItems) {
+      const blob = item.getAsFile();
+      if (blob) {
+        // Create a File object with a meaningful name
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const extension = blob.type.split('/')[1] || 'png';
+        const file = new File([blob], `pasted-image-${timestamp}.${extension}`, { type: blob.type });
+
+        selectedFiles.push(file);
+      }
+    }
+
+    renderFilesList();
+  }
+});
+
 // Theme toggle
 themeToggle.addEventListener("click", () => {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
