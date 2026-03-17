@@ -375,6 +375,26 @@ async function loadSessions() {
   }
 }
 
+async function togglePin(id) {
+  const session = sessions[id];
+  if (!session) return;
+
+  session.pinned = !session.pinned;
+
+  try {
+    await fetch(`/api/sessions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned: session.pinned }),
+    });
+  } catch (err) {
+    console.error("Failed to update pin:", err);
+    session.pinned = !session.pinned; // revert on error
+  }
+
+  renderSessionList();
+}
+
 function renderSessionList() {
   let sorted = Object.values(sessions).sort(
     (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
@@ -387,18 +407,52 @@ function renderSessionList() {
     );
   }
 
-  sessionList.innerHTML = sorted
-    .map(
-      (s) => `
+  // Apply tag filter (OR within tags, AND with search)
+  if (activeTagFilters.size > 0) {
+    sorted = sorted.filter(s =>
+      (s.tags || []).some(t => activeTagFilters.has(t))
+    );
+  }
+
+  const pinned = sorted.filter(s => s.pinned);
+  const recent = sorted.filter(s => !s.pinned);
+
+  let html = "";
+
+  if (pinned.length > 0) {
+    html += '<div class="session-divider">Pinned</div>';
+    html += pinned.map(s => renderSessionItem(s)).join("");
+    if (recent.length > 0) {
+      html += '<div class="session-divider">Recent</div>';
+    }
+  }
+
+  html += recent.map(s => renderSessionItem(s)).join("");
+
+  sessionList.innerHTML = html;
+}
+
+function renderSessionItem(s) {
+  const pinnedClass = s.pinned ? "pinned" : "";
+  const tagPills = (s.tags || []).map(t =>
+    `<span class="session-tag-pill" style="background:${getTagColor(t)}">${escapeHtml(t)}</span>`
+  ).join("");
+
+  return `
     <div class="session-item ${s.id === currentSessionId ? "active" : ""}"
          data-id="${s.id}" onclick="selectSession('${s.id}')">
       <div class="title">${escapeHtml(s.title || "Untitled")}</div>
       <div class="meta">${s.model || "sonnet"} -- ${timeAgo(s.updatedAt)}</div>
+      ${tagPills ? `<div class="session-tags">${tagPills}</div>` : ""}
+      <button class="pin-btn ${pinnedClass}" onclick="event.stopPropagation(); togglePin('${s.id}')" title="${s.pinned ? "Unpin" : "Pin"}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="${s.pinned ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><path d="M12 17v5M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+      </button>
+      <button class="tag-btn" onclick="event.stopPropagation(); openTagModal('${s.id}')" title="Tags">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+      </button>
       <button class="delete-btn" onclick="event.stopPropagation(); deleteSession('${s.id}')" title="Delete">x</button>
     </div>
-  `
-    )
-    .join("");
+  `;
 }
 
 function highlightActiveSession() {

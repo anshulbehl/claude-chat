@@ -852,6 +852,72 @@
     .search-clear:hover {
       color: var(--text-primary);
     }
+
+    .session-item .pin-btn {
+      position: absolute;
+      right: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .session-item:hover .pin-btn { opacity: 1; }
+    .session-item .pin-btn.pinned { opacity: 1; color: var(--accent); }
+    .session-item .pin-btn:hover { color: var(--accent); }
+
+    .session-divider {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 12px 4px;
+    }
+
+    .session-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .session-tag-pill {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      color: #000;
+      font-weight: 500;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session-item .tag-btn {
+      position: absolute;
+      right: 48px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .session-item:hover .tag-btn { opacity: 1; }
+    .session-item .tag-btn:hover { color: var(--accent); }
   </style>
   <script>
     // Prevent sidebar flash on page load
