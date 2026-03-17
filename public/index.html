@@ -799,6 +799,59 @@
       font-weight: 600;
       color: var(--text-primary);
     }
+
+    .search-wrapper {
+      position: relative;
+      margin-top: 12px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 30px 8px 32px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .search-clear:hover {
+      color: var(--text-primary);
+    }
   </style>
   <script>
     // Prevent sidebar flash on page load
@@ -823,6 +876,11 @@
             <option value="opus">Opus</option>
             <option value="haiku">Haiku</option>
           </select>
+        </div>
+        <div class="search-wrapper">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" class="search-input" id="searchInput" placeholder="Search chats...">
+          <button class="search-clear" id="searchClear" title="Clear search">&times;</button>
         </div>
         <button class="theme-toggle" id="themeToggle">
           <span class="theme-icon" id="themeIcon">

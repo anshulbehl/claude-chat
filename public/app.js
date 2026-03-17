@@ -8,6 +8,7 @@ let selectedFiles = []; // files to upload
 let researchMode = false; // research mode toggle
 let currentTheme = localStorage.getItem('theme') || 'dark'; // theme preference
 let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'; // sidebar state
+let searchQuery = ''; // current search filter
 
 // DOM elements
 const chatInput = document.getElementById("chatInput");
@@ -29,6 +30,8 @@ const themeIcon = document.getElementById("themeIcon");
 const themeLabel = document.getElementById("themeLabel");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebarToggle");
+const searchInput = document.getElementById("searchInput");
+const searchClear = document.getElementById("searchClear");
 
 // Configure marked
 marked.setOptions({
@@ -173,6 +176,20 @@ function initializeSidebar() {
     document.documentElement.style.removeProperty('--sidebar-initial-border');
   }
 }
+
+// Search filtering
+searchInput.addEventListener("input", () => {
+  searchQuery = searchInput.value.trim().toLowerCase();
+  searchClear.style.display = searchQuery ? "block" : "none";
+  renderSessionList();
+});
+
+searchClear.addEventListener("click", () => {
+  searchInput.value = "";
+  searchQuery = "";
+  searchClear.style.display = "none";
+  renderSessionList();
+});
 
 async function stopStream() {
   if (!currentStreamId) return;
@@ -321,9 +338,16 @@ async function loadSessions() {
 }
 
 function renderSessionList() {
-  const sorted = Object.values(sessions).sort(
+  let sorted = Object.values(sessions).sort(
     (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
   );
+
+  // Apply search filter
+  if (searchQuery) {
+    sorted = sorted.filter(s =>
+      (s.title || "").toLowerCase().includes(searchQuery)
+    );
+  }
 
   sessionList.innerHTML = sorted
     .map(
