@@ -189,6 +189,78 @@ describe("DELETE /api/sessions/:id", () => {
   });
 });
 
+describe("PATCH /api/sessions/:id", () => {
+  it("updates pinned status on a session", async () => {
+    writeTestSessions({
+      sess1: { id: "sess1", title: "Test", messages: [], pinned: false, tags: [] },
+    });
+
+    const res = await request(app)
+      .patch("/api/sessions/sess1")
+      .send({ pinned: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    const listRes = await request(app).get("/api/sessions");
+    expect(listRes.body[0].pinned).toBe(true);
+  });
+
+  it("updates tags on a session", async () => {
+    writeTestSessions({
+      sess1: { id: "sess1", title: "Test", messages: [], pinned: false, tags: [] },
+    });
+
+    const res = await request(app)
+      .patch("/api/sessions/sess1")
+      .send({ tags: ["kubernetes", "infra"] });
+
+    expect(res.status).toBe(200);
+
+    const listRes = await request(app).get("/api/sessions");
+    expect(listRes.body[0].tags).toEqual(["kubernetes", "infra"]);
+  });
+
+  it("returns 404 for non-existent session", async () => {
+    const res = await request(app)
+      .patch("/api/sessions/nonexistent")
+      .send({ pinned: true });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("ignores fields other than pinned and tags", async () => {
+    writeTestSessions({
+      sess1: { id: "sess1", title: "Original", messages: [], pinned: false, tags: [] },
+    });
+
+    const res = await request(app)
+      .patch("/api/sessions/sess1")
+      .send({ title: "Hacked", pinned: true });
+
+    expect(res.status).toBe(200);
+
+    const listRes = await request(app).get("/api/sessions");
+    expect(listRes.body[0].title).toBe("Original");
+    expect(listRes.body[0].pinned).toBe(true);
+  });
+
+  it("normalizes tags server-side", async () => {
+    writeTestSessions({
+      sess1: { id: "sess1", title: "Test", messages: [], tags: [] },
+    });
+
+    const res = await request(app)
+      .patch("/api/sessions/sess1")
+      .send({ tags: ["  Kubernetes ", "", "INFRA", "a".repeat(50)] });
+
+    expect(res.status).toBe(200);
+
+    const listRes = await request(app).get("/api/sessions");
+    expect(listRes.body[0].tags).toEqual(["kubernetes", "infra", "a".repeat(30)]);
+  });
+});
+
 describe("POST /api/chat", () => {
   it("returns 400 when message is missing", async () => {
     const res = await request(app).post("/api/chat").field("model", "sonnet");
