@@ -29,6 +29,7 @@ const themeIcon = document.getElementById("themeIcon");
 const themeLabel = document.getElementById("themeLabel");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebarToggle");
+const inputArea = document.querySelector(".input-area");
 
 // Configure marked
 marked.setOptions({
@@ -109,6 +110,45 @@ chatInput.addEventListener("paste", async (e) => {
       }
     }
 
+    renderFilesList();
+  }
+});
+
+// Drag and drop file upload
+let dragCounter = 0; // Track nested drag enter/leave events
+
+inputArea.addEventListener("dragenter", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter++;
+  if (dragCounter === 1) {
+    inputArea.classList.add("drag-over");
+  }
+});
+
+inputArea.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+inputArea.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter--;
+  if (dragCounter === 0) {
+    inputArea.classList.remove("drag-over");
+  }
+});
+
+inputArea.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter = 0;
+  inputArea.classList.remove("drag-over");
+
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length > 0) {
+    selectedFiles.push(...files);
     renderFilesList();
   }
 });
