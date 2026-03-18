@@ -20,10 +20,14 @@ setupModelsRoutes(app, availableModels);
 setupSessionsRoutes(app);
 setupChatRoute(app, client, upload);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running at: http://localhost:${PORT}`);
-});
+const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+
+// Start server only outside test runs.
+if (!isTestEnv) {
+  app.listen(PORT, () => {
+    console.log(`Server running at: http://localhost:${PORT}`);
+  });
+}
 
 // Export for testing
 export { app, ALL_MODELS };

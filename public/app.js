@@ -5,6 +5,7 @@ let isStreaming = false;
 let currentStreamId = null; // track active stream for stopping
 let currentMessages = []; // local message history for display
 let selectedFiles = []; // files to upload
+const filePreviewUrls = new Map(); // Track object URLs for selected image files
 let researchMode = false; // research mode toggle
 let currentTheme = localStorage.getItem('theme') || 'dark'; // theme preference
 let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'; // sidebar state
@@ -324,10 +325,40 @@ function startNewChat() {
   chatInput.focus();
 }
 
+function getFilePreviewUrl(file) {
+  if (!filePreviewUrls.has(file)) {
+    filePreviewUrls.set(file, URL.createObjectURL(file));
+  }
+  return filePreviewUrls.get(file);
+}
+
+function revokeFilePreviewUrl(file) {
+  const url = filePreviewUrls.get(file);
+  if (url) {
+    URL.revokeObjectURL(url);
+    filePreviewUrls.delete(file);
+  }
+}
+
+function clearAllFilePreviewUrls() {
+  for (const url of filePreviewUrls.values()) {
+    URL.revokeObjectURL(url);
+  }
+  filePreviewUrls.clear();
+}
+
 function renderFilesList() {
   if (selectedFiles.length === 0) {
+    clearAllFilePreviewUrls();
     filesList.style.display = "none";
     return;
+  }
+
+  // Revoke previews for files no longer selected.
+  for (const file of filePreviewUrls.keys()) {
+    if (!selectedFiles.includes(file)) {
+      revokeFilePreviewUrl(file);
+    }
   }
 
   filesList.style.display = "flex";
@@ -344,7 +375,7 @@ function renderFilesList() {
     if (isImage) {
       const img = document.createElement("img");
       img.className = "file-preview";
-      img.src = URL.createObjectURL(file);
+      img.src = getFilePreviewUrl(file);
       img.alt = file.name;
       fileTag.appendChild(img);
     }
@@ -367,7 +398,11 @@ function renderFilesList() {
 }
 
 function removeFile(index) {
+  const removedFile = selectedFiles[index];
   selectedFiles.splice(index, 1);
+  if (removedFile) {
+    revokeFilePreviewUrl(removedFile);
+  }
   renderFilesList();
 }
 
@@ -600,6 +635,49 @@ async function sendMessage() {
     let buffer = "";
     let fullText = "";
     let gotFirstText = false;
+    let renderScheduled = false;
+    let pendingRenderTimeout = null;
+    const STREAM_RENDER_INTERVAL_MS = 50;
+
+    const flushStreamRender = () => {
+      renderScheduled = false;
+      pendingRenderTimeout = null;
+
+      if (!gotFirstText) {
+        contentEl.innerHTML = "";
+        gotFirstText = true;
+      }
+
+      contentEl.innerHTML = renderMarkdown(fullText);
+      contentEl.classList.add("streaming-cursor");
+      scrollToBottom();
+    };
+
+    const scheduleStreamRender = (force = false) => {
+      if (force) {
+        if (pendingRenderTimeout) {
+          clearTimeout(pendingRenderTimeout);
+          pendingRenderTimeout = null;
+        }
+        flushStreamRender();
+        return;
+      }
+
+      if (renderScheduled) {
+        return;
+      }
+
+      renderScheduled = true;
+      pendingRenderTimeout = setTimeout(flushStreamRender, STREAM_RENDER_INTERVAL_MS);
+    };
+
+    const cancelScheduledStreamRender = () => {
+      if (pendingRenderTimeout) {
+        clearTimeout(pendingRenderTimeout);
+        pendingRenderTimeout = null;
+      }
+      renderScheduled = false;
+    };
 
     while (true) {
       const { value, done } = await reader.read();
@@ -692,14 +770,8 @@ async function sendMessage() {
             // Store sources for later display
             msgEl._researchSources = event.sources;
           } else if (event.type === "text") {
-            if (!gotFirstText) {
-              contentEl.innerHTML = "";
-              gotFirstText = true;
-            }
             fullText += event.text;
-            contentEl.innerHTML = renderMarkdown(fullText);
-            contentEl.classList.add("streaming-cursor");
-            scrollToBottom();
+            scheduleStreamRender();
           } else if (event.type === "tool_use" && event.name === "web_search") {
             // Show search indicator immediately
             if (!gotFirstText) {
@@ -716,6 +788,9 @@ async function sendMessage() {
             // Store search results to append after text
             msgEl._searchResults = event.results;
           } else if (event.type === "done") {
+            if (fullText) {
+              scheduleStreamRender(true);
+            }
             contentEl.classList.remove("streaming-cursor");
 
             // Append research sources if any (from research mode)
@@ -744,6 +819,10 @@ async function sendMessage() {
           // Skip malformed JSON
         }
       }
+
+      if (fullText && renderScheduled) {
+        scheduleStreamRender(true);
+      }
     }
 
     assistantMsg.content = fullText;
@@ -762,6 +841,7 @@ async function sendMessage() {
       updateHeader(sessions[currentSessionId].title || "Chat");
     }
   } catch (err) {
+      cancelScheduledStreamRender();
     contentEl.classList.remove("streaming-cursor");
     contentEl.innerHTML = `<p style="color: var(--accent)">Error: ${escapeHtml(err.message)}</p>`;
 
@@ -772,6 +852,7 @@ async function sendMessage() {
     selectedFiles = [];
     renderFilesList();
   } finally {
+      cancelScheduledStreamRender();
     isStreaming = false;
     sendBtn.disabled = false;
     sendBtn.style.display = "flex";
@@ -780,6 +861,8 @@ async function sendMessage() {
     chatInput.focus();
   }
 }
+
+window.addEventListener("beforeunload", clearAllFilePreviewUrls);
 
 function renderMarkdown(text) {
   try {
