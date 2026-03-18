@@ -140,7 +140,7 @@ function isFileDragEvent(e) {
 }
 
 inputArea.addEventListener("dragenter", (e) => {
- if (!isFileDragEvent(e)) {
+  if (!isFileDragEvent(e)) {
     return;
   }
   e.preventDefault();
@@ -152,7 +152,7 @@ inputArea.addEventListener("dragenter", (e) => {
 });
 
 inputArea.addEventListener("dragover", (e) => {
- if (!isFileDragEvent(e)) {
+  if (!isFileDragEvent(e)) {
     return;
   }
   e.preventDefault();
