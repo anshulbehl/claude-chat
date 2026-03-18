@@ -117,7 +117,31 @@ chatInput.addEventListener("paste", async (e) => {
 // Drag and drop file upload
 let dragCounter = 0; // Track nested drag enter/leave events
 
+function resetDragState() {
+  dragCounter = 0;
+  inputArea.classList.remove("drag-over");
+}
+
+function isPointInsideElement(el, x, y) {
+  const rect = el.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function isFileDragEvent(e) {
+  const dt = e.dataTransfer;
+  if (!dt) return false;
+  if (dt.files && dt.files.length > 0) {
+    return true;
+  }
+  const types = dt.types;
+  if (!types) return false;
+  return Array.from(types).includes("Files");
+}
+
 inputArea.addEventListener("dragenter", (e) => {
+ if (!isFileDragEvent(e)) {
+    return;
+  }
   e.preventDefault();
   e.stopPropagation();
   dragCounter++;
@@ -127,6 +151,9 @@ inputArea.addEventListener("dragenter", (e) => {
 });
 
 inputArea.addEventListener("dragover", (e) => {
+ if (!isFileDragEvent(e)) {
+    return;
+  }
   e.preventDefault();
   e.stopPropagation();
 });
@@ -134,13 +161,16 @@ inputArea.addEventListener("dragover", (e) => {
 inputArea.addEventListener("dragleave", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  dragCounter--;
-  if (dragCounter === 0) {
+  dragCounter = Math.max(0, dragCounter - 1);
+  if (dragCounter <= 0) {
     inputArea.classList.remove("drag-over");
   }
 });
 
 inputArea.addEventListener("drop", (e) => {
+  if (!isFileDragEvent(e)) {
+    return;
+  }
   e.preventDefault();
   e.stopPropagation();
   dragCounter = 0;
@@ -152,6 +182,31 @@ inputArea.addEventListener("drop", (e) => {
     renderFilesList();
   }
 });
+
+document.addEventListener("dragover", (e) => {
+  if (!isFileDragEvent(e)) {
+    return;
+  }
+
+  if (!isPointInsideElement(inputArea, e.clientX, e.clientY)) {
+    resetDragState();
+  }
+});
+
+document.addEventListener("dragleave", (e) => {
+  const leftWindow =
+    e.clientX <= 0 ||
+    e.clientY <= 0 ||
+    e.clientX >= window.innerWidth ||
+    e.clientY >= window.innerHeight;
+
+  if (leftWindow) {
+    resetDragState();
+  }
+});
+
+document.addEventListener("drop", resetDragState);
+window.addEventListener("dragend", resetDragState);
 
 // Theme toggle
 themeToggle.addEventListener("click", () => {
