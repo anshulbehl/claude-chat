@@ -222,45 +222,11 @@ marked.setOptions({
   gfm: true,
 });
 
-function getChatInputMaxHeight() {
-  return Math.max(120, Math.min(Math.floor(window.innerHeight * 0.36), 320));
-}
-
-let chatInputManualHeight = null;
-let isProgrammaticChatResize = false;
-
-function resizeChatInput(forceAuto = false) {
-  const maxHeight = getChatInputMaxHeight();
-  const targetHeight = forceAuto
-    ? Math.min(chatInput.scrollHeight, maxHeight)
-    : Math.min(Math.max(chatInput.scrollHeight, chatInputManualHeight || 0), maxHeight);
-
-  if (chatInputManualHeight !== null) {
-    chatInputManualHeight = Math.min(chatInputManualHeight, maxHeight);
-  }
-
-  chatInput.style.maxHeight = `${maxHeight}px`;
-  isProgrammaticChatResize = true;
-  chatInput.style.height = `${targetHeight}px`;
-  isProgrammaticChatResize = false;
-  chatInput.style.overflowY = chatInput.scrollHeight > targetHeight ? "auto" : "hidden";
-}
-
 // Auto-resize textarea
-chatInput.addEventListener("input", resizeChatInput);
-window.addEventListener("resize", resizeChatInput);
-
-if (typeof ResizeObserver !== "undefined") {
-  const chatInputResizeObserver = new ResizeObserver((entries) => {
-    const maxHeight = getChatInputMaxHeight();
-    for (const entry of entries) {
-      if (entry.target !== chatInput || isProgrammaticChatResize) continue;
-      chatInputManualHeight = Math.min(entry.contentRect.height, maxHeight);
-      chatInput.style.overflowY = chatInput.scrollHeight > chatInputManualHeight ? "auto" : "hidden";
-    }
-  });
-  chatInputResizeObserver.observe(chatInput);
-}
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + "px";
+});
 
 // Send on Enter (Shift+Enter for newline)
 chatInput.addEventListener("keydown", (e) => {
@@ -580,7 +546,6 @@ applyTheme(currentTheme);
 initializeSidebar();
 loadModels();
 loadSessions();
-resizeChatInput(true);
 
 function startNewChat() {
   currentSessionId = null;
@@ -590,8 +555,7 @@ function startNewChat() {
   renderFilesList();
   updateHeader("New Chat");
   highlightActiveSession();
-  chatInputManualHeight = null;
-  resizeChatInput(true);
+  chatInput.style.height = "auto";
   chatInput.focus();
 }
 
@@ -871,8 +835,7 @@ async function sendMessage() {
   sendBtn.style.display = "none";
   stopBtn.classList.add("visible");
   chatInput.value = "";
-  chatInputManualHeight = null;
-  resizeChatInput(true);
+  chatInput.style.height = "auto";
 
   // Add user message
   currentMessages.push({ role: "user", content: text });
