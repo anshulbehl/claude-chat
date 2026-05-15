@@ -3,3 +3,5 @@ IMPLEMENTATION_SESSION.md
 .claude/
 .superpowers/
 docs/superpowers/
+.env
+.env.local
