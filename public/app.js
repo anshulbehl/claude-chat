@@ -261,10 +261,8 @@ researchBtn.addEventListener("click", () => {
   }
 });
 fileInput.addEventListener("change", (e) => {
-  const files = Array.from(e.target.files);
-  selectedFiles.push(...files);
-  renderFilesList();
-  fileInput.value = ""; // Reset input
+  addValidatedFiles(Array.from(e.target.files));
+  fileInput.value = "";
 });
 
 // Handle paste events (screenshots, images from clipboard)
@@ -277,19 +275,17 @@ chatInput.addEventListener("paste", async (e) => {
   if (imageItems.length > 0) {
     e.preventDefault(); // Prevent default paste behavior for images
 
+    const pastedFiles = [];
     for (const item of imageItems) {
       const blob = item.getAsFile();
       if (blob) {
-        // Create a File object with a meaningful name
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const extension = blob.type.split('/')[1] || 'png';
-        const file = new File([blob], `pasted-image-${timestamp}.${extension}`, { type: blob.type });
-
-        selectedFiles.push(file);
+        pastedFiles.push(new File([blob], `pasted-image-${timestamp}.${extension}`, { type: blob.type }));
       }
     }
 
-    renderFilesList();
+    addValidatedFiles(pastedFiles);
   }
 });
 
@@ -361,8 +357,7 @@ inputArea.addEventListener("drop", (e) => {
 
   const files = Array.from(e.dataTransfer.files);
   if (files.length > 0) {
-    selectedFiles.push(...files);
-    renderFilesList();
+    addValidatedFiles(files);
     chatInput.focus();
   }
 });
@@ -503,6 +498,17 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Suggestion chip click handler
+document.addEventListener("click", (e) => {
+  const suggestion = e.target.closest(".empty-suggestion");
+  if (suggestion && suggestion.dataset.prompt) {
+    chatInput.value = suggestion.dataset.prompt;
+    chatInput.style.height = "auto";
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + "px";
+    chatInput.focus();
+  }
+});
+
 async function stopStream() {
   if (!currentStreamId) return;
 
@@ -559,6 +565,75 @@ function startNewChat() {
   chatInput.focus();
 }
 
+const ALLOWED_EXTENSIONS = [
+  ".png", ".jpg", ".jpeg", ".gif", ".webp",
+  ".pdf",
+  ".txt", ".md", ".json", ".xml", ".html", ".htm", ".css", ".js", ".ts",
+  ".jsx", ".tsx", ".py", ".java", ".c", ".cpp", ".h", ".hpp", ".cs",
+  ".rb", ".go", ".rs", ".php", ".swift", ".kt", ".scala", ".sh", ".bash",
+  ".zsh", ".fish", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
+  ".log", ".csv", ".tsv", ".sql", ".r", ".m", ".pl", ".lua", ".vim",
+  ".tex", ".rtf", ".diff", ".patch", ".gitignore", ".env", ".properties"
+];
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+function getFileTypeCategory(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const codeExts = ["js","ts","jsx","tsx","py","java","c","cpp","h","hpp","cs","rb","go","rs","php","swift","kt","scala","sh","bash","zsh","fish","pl","lua","vim","r","m"];
+  const dataExts = ["json","csv","tsv","sql","xml"];
+  const configExts = ["yaml","yml","toml","ini","cfg","conf","env","properties","gitignore"];
+
+  if (ext === "pdf") return { label: "PDF", cls: "pdf" };
+  if (codeExts.includes(ext)) return { label: ext.toUpperCase().slice(0, 4), cls: "code" };
+  if (dataExts.includes(ext)) return { label: ext.toUpperCase().slice(0, 4), cls: "data" };
+  if (configExts.includes(ext)) return { label: ext.toUpperCase().slice(0, 4), cls: "config" };
+  return { label: ext.toUpperCase().slice(0, 4) || "FILE", cls: "text" };
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function validateFile(file) {
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+  if (!ext || ext === file.name.toLowerCase()) {
+    return "File must have a valid extension";
+  }
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return `"${ext}" files are not supported`;
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return `${file.name} is too large (${formatFileSize(file.size)}). Max is 20 MB`;
+  }
+  return null;
+}
+
+function showFileValidationError(message) {
+  let errorEl = document.querySelector(".file-validation-error");
+  if (!errorEl) {
+    errorEl = document.createElement("div");
+    errorEl.className = "file-validation-error";
+    filesList.parentNode.insertBefore(errorEl, filesList.nextSibling);
+  }
+  errorEl.textContent = message;
+  setTimeout(() => errorEl.remove(), 4000);
+}
+
+function addValidatedFiles(files) {
+  for (const file of files) {
+    const error = validateFile(file);
+    if (error) {
+      showFileValidationError(error);
+    } else {
+      selectedFiles.push(file);
+    }
+  }
+  renderFilesList();
+}
+
 function renderFilesList() {
   if (selectedFiles.length === 0) {
     filesList.style.display = "none";
@@ -572,7 +647,6 @@ function renderFilesList() {
     const fileTag = document.createElement("div");
     fileTag.className = "file-tag";
 
-    // Show image preview for image files
     const isImage = file.type.startsWith("image/");
     const isPasted = file.name.startsWith("pasted-image-");
 
@@ -582,14 +656,29 @@ function renderFilesList() {
       img.src = URL.createObjectURL(file);
       img.alt = file.name;
       fileTag.appendChild(img);
+    } else {
+      const { label, cls } = getFileTypeCategory(file.name);
+      const icon = document.createElement("div");
+      icon.className = `file-type-icon ${cls}`;
+      icon.textContent = label;
+      fileTag.appendChild(icon);
     }
 
-    // Only show filename for non-pasted images or non-images
-    if (!isPasted) {
-      const fileName = document.createElement("span");
-      fileName.textContent = file.name;
-      fileTag.appendChild(fileName);
-    }
+    const info = document.createElement("div");
+    info.className = "file-info";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "file-name";
+    nameEl.textContent = isPasted ? "Pasted image" : file.name;
+    nameEl.title = file.name;
+    info.appendChild(nameEl);
+
+    const sizeEl = document.createElement("div");
+    sizeEl.className = "file-size";
+    sizeEl.textContent = formatFileSize(file.size);
+    info.appendChild(sizeEl);
+
+    fileTag.appendChild(info);
 
     const removeBtn = document.createElement("span");
     removeBtn.className = "remove";
@@ -608,9 +697,25 @@ function removeFile(index) {
 
 function updateHeader(title) {
   chatHeader.innerHTML = `
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
     <span>${escapeHtml(title)}</span>
     <span class="model-badge" id="modelBadge">${modelSelect.value}</span>
   `;
+  chatHeader.querySelector("#sidebarToggle").addEventListener("click", () => {
+    sidebarCollapsed = !sidebarCollapsed;
+    sidebar.classList.toggle('collapsed', sidebarCollapsed);
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+    if (!sidebarCollapsed) {
+      document.documentElement.style.removeProperty('--sidebar-initial-width');
+      document.documentElement.style.removeProperty('--sidebar-initial-border');
+    }
+  });
 }
 
 async function loadModels() {
@@ -812,16 +917,27 @@ function renderMessages() {
       </div>`
           : `<div class="role-label">You</div>`;
 
+        const timestamp = m.timestamp
+          ? `<div class="message-timestamp" style="opacity:1;animation:none">${new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`
+          : "";
+
+        const completeBar = m.role === "assistant" && !m._streaming
+          ? '<div class="message-complete-bar" style="opacity:0.4;animation:none"></div>'
+          : "";
+
         return `
     <div class="message ${m.role}">
       ${messageHeader}
       <div class="message-content">${textContent}</div>
+      ${completeBar}
+      ${timestamp}
     </div>
   `;
       }
     )
     .join("");
 
+  messagesEl.querySelectorAll(".message").forEach(el => el.classList.add("no-animate"));
   addCopyButtons();
   scrollToBottom();
 }
@@ -832,7 +948,7 @@ async function sendMessage() {
 
   isStreaming = true;
   sendBtn.disabled = true;
-  sendBtn.style.display = "none";
+  sendBtn.classList.add("hidden");
   stopBtn.classList.add("visible");
   chatInput.value = "";
   chatInput.style.height = "auto";
@@ -856,7 +972,9 @@ async function sendMessage() {
       </div>
     </div>
     <div class="message-content streaming-cursor">
-      <div class="loading-dots"><span></span><span></span><span></span></div>
+      ${selectedFiles.length > 0
+        ? `<div class="upload-indicator"><span class="search-spinner"></span> Uploading ${selectedFiles.length} file(s)...</div>`
+        : '<div class="loading-dots"><span></span><span></span><span></span></div>'}
     </div>
   `;
   messagesEl.appendChild(msgEl);
@@ -1038,7 +1156,21 @@ async function sendMessage() {
             // Store search results to append after text
             msgEl._searchResults = event.results;
           } else if (event.type === "done") {
-            contentEl.classList.remove("streaming-cursor");
+            contentEl.classList.add("streaming-done");
+            setTimeout(() => {
+              contentEl.classList.remove("streaming-cursor", "streaming-done");
+
+              // Completion bar
+              const completeBar = document.createElement("div");
+              completeBar.className = "message-complete-bar";
+              msgEl.appendChild(completeBar);
+
+              // Timestamp
+              const timestampEl = document.createElement("div");
+              timestampEl.className = "message-timestamp";
+              timestampEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              msgEl.appendChild(timestampEl);
+            }, 300);
 
             // Append research sources if any (from research mode)
             if (msgEl._researchSources?.length > 0) {
@@ -1100,7 +1232,7 @@ async function sendMessage() {
   } finally {
     isStreaming = false;
     sendBtn.disabled = false;
-    sendBtn.style.display = "flex";
+    sendBtn.classList.remove("hidden");
     stopBtn.classList.remove("visible");
     currentStreamId = null;
     chatInput.focus();
