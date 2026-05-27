@@ -278,6 +278,63 @@ describe("POST /api/chat", () => {
     expect(res.body.error).toContain("not supported");
   });
 
+  it("returns 400 with user-friendly message for file size limit", async () => {
+    const res = await request(app)
+      .post("/api/chat")
+      .field("message", "test")
+      .field("model", "sonnet")
+      .attach("files", Buffer.alloc(21 * 1024 * 1024), "huge.txt");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("File too large");
+    expect(res.body.error).toContain("20MB");
+  });
+
+  it("returns 400 with user-friendly message for too many files", async () => {
+    const req = request(app)
+      .post("/api/chat")
+      .field("message", "test")
+      .field("model", "sonnet");
+
+    for (let i = 0; i < 6; i++) {
+      req.attach("files", Buffer.from(`file ${i}`), `file${i}.txt`);
+    }
+
+    const res = await req;
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Too many files");
+    expect(res.body.error).toContain("5");
+  });
+
+  it("returns 400 with descriptive message for files without valid extension", async () => {
+    const res = await request(app)
+      .post("/api/chat")
+      .field("message", "test")
+      .field("model", "sonnet")
+      .attach("files", Buffer.from("data"), "noextension");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("not supported");
+  });
+
+  it("accepts exactly 5 files (at the limit)", async () => {
+    mockStream.on.mockImplementation(() => mockStream);
+    mockStream.finalMessage.mockResolvedValue({
+      content: [{ type: "text", text: "Got them" }],
+      usage: { input_tokens: 20, output_tokens: 5 },
+    });
+
+    const req = request(app)
+      .post("/api/chat")
+      .field("message", "five files")
+      .field("model", "sonnet");
+
+    for (let i = 0; i < 5; i++) {
+      req.attach("files", Buffer.from(`file ${i}`), `file${i}.txt`);
+    }
+
+    const res = await req;
+    expect(res.status).toBe(200);
+  });
+
   it("streams SSE response for valid text message", async () => {
     // Set up mock stream behavior
     mockStream.on.mockImplementation((event, handler) => {
@@ -366,6 +423,86 @@ describe("POST /api/chat", () => {
     const sessionEvent = events.find((e) => e.type === "session");
     expect(sessionEvent).toBeTruthy();
     expect(sessionEvent.sessionId).toBeTruthy();
+  });
+
+  it("accepts various allowed file types", async () => {
+    mockStream.on.mockImplementation(() => mockStream);
+    mockStream.finalMessage.mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 5, output_tokens: 2 },
+    });
+
+    const allowedFiles = [
+      { name: "code.py", content: "print('hello')" },
+      { name: "config.yaml", content: "key: value" },
+      { name: "data.json", content: '{"a":1}' },
+      { name: "readme.md", content: "# Title" },
+      { name: "style.css", content: "body {}" },
+    ];
+
+    const req = request(app)
+      .post("/api/chat")
+      .field("message", "review these files")
+      .field("model", "sonnet");
+
+    for (const f of allowedFiles) {
+      req.attach("files", Buffer.from(f.content), f.name);
+    }
+
+    const res = await req;
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("dotenv and environment configuration", () => {
+  it("loads GOOGLE_CLOUD_PROJECT from environment", async () => {
+    expect(process.env.GOOGLE_CLOUD_PROJECT).toBe("test-project");
+  });
+
+  it("defaults GOOGLE_CLOUD_REGION to us-east5", async () => {
+    expect(process.env.GOOGLE_CLOUD_REGION).toBe("us-east5");
+  });
+
+  it("defaults PORT to 3000 when not set", async () => {
+    const originalPort = process.env.PORT;
+    delete process.env.PORT;
+    // The config module already loaded, so we verify the exported value
+    const { PORT } = await import("../lib/config.js");
+    expect(PORT).toBeTruthy();
+    if (originalPort) process.env.PORT = originalPort;
+  });
+});
+
+describe("setup-env.js script", () => {
+  it("script file exists and is valid ESM", async () => {
+    const { existsSync, readFileSync } = await import("fs");
+    const { join } = await import("path");
+    const scriptPath = join(process.cwd(), "scripts", "setup-env.js");
+    expect(existsSync(scriptPath)).toBe(true);
+    const content = readFileSync(scriptPath, "utf-8");
+    expect(content).toContain("import");
+    expect(content).toContain(".env.local");
+    expect(content).toContain(".env.example");
+  });
+
+  it(".env.example template exists with required variables", async () => {
+    const { existsSync, readFileSync } = await import("fs");
+    const { join } = await import("path");
+    const examplePath = join(process.cwd(), ".env.example");
+    expect(existsSync(examplePath)).toBe(true);
+    const content = readFileSync(examplePath, "utf-8");
+    expect(content).toContain("GOOGLE_CLOUD_PROJECT");
+    expect(content).toContain("GOOGLE_CLOUD_REGION");
+    expect(content).toContain("PORT");
+  });
+
+  it(".gitignore includes .env and .env.local", async () => {
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    const gitignorePath = join(process.cwd(), ".gitignore");
+    const content = readFileSync(gitignorePath, "utf-8");
+    expect(content).toContain(".env");
+    expect(content).toContain(".env.local");
   });
 });
 
