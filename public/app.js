@@ -209,6 +209,7 @@ const tagSuggestions = document.getElementById("tagSuggestions");
 const tagModalCurrent = document.getElementById("tagModalCurrent");
 const inputArea = document.querySelector(".input-area");
 const inputWrapper = document.querySelector(".input-wrapper");
+const sidebarBackdrop = document.getElementById("sidebarBackdrop");
 
 // Configure marked
 marked.setOptions({
@@ -426,24 +427,46 @@ function applyTheme(theme) {
   }
 }
 
-// Sidebar toggle
-sidebarToggle.addEventListener("click", () => {
+function isMobile() {
+  return window.innerWidth <= 768;
+}
+
+function toggleSidebar() {
   sidebarCollapsed = !sidebarCollapsed;
   sidebar.classList.toggle('collapsed', sidebarCollapsed);
-  localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
-
-  // Clear CSS variables set in head script when expanding
+  sidebarBackdrop.classList.toggle('visible', !sidebarCollapsed && isMobile());
+  if (!isMobile()) {
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+  }
   if (!sidebarCollapsed) {
     document.documentElement.style.removeProperty('--sidebar-initial-width');
     document.documentElement.style.removeProperty('--sidebar-initial-border');
   }
+}
+
+function collapseSidebarOnMobile() {
+  if (isMobile() && !sidebarCollapsed) {
+    sidebarCollapsed = true;
+    sidebar.classList.add('collapsed');
+    sidebarBackdrop.classList.remove('visible');
+  }
+}
+
+// Sidebar toggle
+sidebarToggle.addEventListener("click", toggleSidebar);
+
+// Backdrop click closes sidebar
+sidebarBackdrop.addEventListener("click", () => {
+  collapseSidebarOnMobile();
 });
 
 function initializeSidebar() {
-  if (sidebarCollapsed) {
+  if (isMobile()) {
+    sidebarCollapsed = true;
+    sidebar.classList.add('collapsed');
+  } else if (sidebarCollapsed) {
     sidebar.classList.add('collapsed');
   } else {
-    // Clear CSS variables if sidebar is not collapsed
     document.documentElement.style.removeProperty('--sidebar-initial-width');
     document.documentElement.style.removeProperty('--sidebar-initial-border');
   }
@@ -561,6 +584,7 @@ function startNewChat() {
   renderFilesList();
   updateHeader("New Chat");
   highlightActiveSession();
+  collapseSidebarOnMobile();
   chatInput.style.height = "auto";
   chatInput.focus();
 }
@@ -707,15 +731,7 @@ function updateHeader(title) {
     <span>${escapeHtml(title)}</span>
     <span class="model-badge" id="modelBadge">${modelSelect.value}</span>
   `;
-  chatHeader.querySelector("#sidebarToggle").addEventListener("click", () => {
-    sidebarCollapsed = !sidebarCollapsed;
-    sidebar.classList.toggle('collapsed', sidebarCollapsed);
-    localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
-    if (!sidebarCollapsed) {
-      document.documentElement.style.removeProperty('--sidebar-initial-width');
-      document.documentElement.style.removeProperty('--sidebar-initial-border');
-    }
-  });
+  chatHeader.querySelector("#sidebarToggle").addEventListener("click", toggleSidebar);
 }
 
 async function loadModels() {
@@ -847,6 +863,7 @@ function highlightActiveSession() {
 async function selectSession(id) {
   currentSessionId = id;
   highlightActiveSession();
+  collapseSidebarOnMobile();
   const session = sessions[id];
   if (session) {
     updateHeader(session.title || "Chat");
@@ -939,7 +956,7 @@ function renderMessages() {
 
   messagesEl.querySelectorAll(".message").forEach(el => el.classList.add("no-animate"));
   addCopyButtons();
-  scrollToBottom();
+  scrollToBottom(true);
 }
 
 async function sendMessage() {
@@ -978,7 +995,7 @@ async function sendMessage() {
     </div>
   `;
   messagesEl.appendChild(msgEl);
-  scrollToBottom();
+  scrollToBottom(true);
 
   const contentEl = msgEl.querySelector(".message-content");
   const messageCopyBtn = msgEl.querySelector(".message-copy-btn");
@@ -1381,8 +1398,15 @@ function addCopyButtons() {
   });
 }
 
-function scrollToBottom() {
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+function isNearBottom() {
+  const threshold = 150;
+  return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < threshold;
+}
+
+function scrollToBottom(force) {
+  if (force || isNearBottom()) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 }
 
 function timeAgo(dateStr) {

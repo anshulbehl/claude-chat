@@ -1332,6 +1332,19 @@
       color: var(--accent);
     }
 
+    /* Sidebar backdrop for mobile */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 49;
+    }
+
+    .sidebar-backdrop.visible {
+      display: block;
+    }
+
     /* Mobile responsive */
     @media (max-width: 768px) {
       .sidebar {
@@ -1340,10 +1353,12 @@
         height: 100vh;
         width: 280px;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+        transition: transform 0.25s ease, width 0.25s ease;
       }
 
       .sidebar.collapsed {
-        width: 0;
+        width: 280px;
+        transform: translateX(-100%);
         box-shadow: none;
       }
 
@@ -1401,6 +1416,7 @@
 </head>
 <body>
   <div class="app">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <button class="new-chat-btn" id="newChatBtn">New Chat</button>
