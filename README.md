@@ -22,7 +22,20 @@ A lightweight web-based chat interface for Claude, powered by the Anthropic Vert
 
 ```bash
 npm install
-GOOGLE_CLOUD_PROJECT=your-project-id npm start
+```
+
+On first install, a `.env` file is created from `.env.example`. Edit it with your project ID:
+
+```bash
+# Or create .env.local for personal config (git-ignored)
+cp .env.example .env.local
+# Edit .env.local and set GOOGLE_CLOUD_PROJECT=your-project-id
+```
+
+Start the server:
+
+```bash
+npm start
 ```
 
 Then open http://localhost:3000 in your browser.
@@ -30,7 +43,34 @@ Then open http://localhost:3000 in your browser.
 For development with auto-reload:
 
 ```bash
-GOOGLE_CLOUD_PROJECT=your-project-id npm run dev
+npm run dev
+```
+
+## Running as a Persistent Service
+
+To keep the server running across reboots and recover from crashes, use [pm2](https://pm2.keymetrics.io/). Works on both macOS and Linux.
+
+**One-time setup:**
+
+```bash
+npm install -g pm2
+
+# Start the app as a service
+npm run service:start
+
+# Make it survive reboots
+pm2 startup
+# Run the command it prints (requires sudo), then:
+pm2 save
+```
+
+**Day-to-day commands:**
+
+```bash
+npm run service:status   # Check if the app is running
+npm run service:logs     # View logs
+npm run service:restart  # Restart after pulling new code
+npm run service:stop     # Stop the app
 ```
 
 ## Features

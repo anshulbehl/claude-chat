@@ -9,7 +9,12 @@
     "dev": "node --watch server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "node scripts/setup-env.js"
+    "postinstall": "node scripts/setup-env.js",
+    "service:start": "pm2 start ecosystem.config.cjs",
+    "service:stop": "pm2 stop claude-chat",
+    "service:restart": "pm2 restart claude-chat",
+    "service:logs": "pm2 logs claude-chat",
+    "service:status": "pm2 status"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.70",
